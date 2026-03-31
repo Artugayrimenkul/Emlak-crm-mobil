@@ -39,7 +39,7 @@ st.set_page_config(page_title=f"{config['company_name']} - Mobil Portal", page_i
 st.title(f"🏠 {config['company_name']}")
 st.subheader("Mobil İlan ve Müşteri Girişi")
 
-menu = ["Yeni Müşteri", "Yeni Satılık Konut", "Yeni Kiralık Konut", "Yeni Satılık Arsa", "Portföy Listesi"]
+menu = ["Yeni Müşteri", "Yeni Satılık Konut", "Yeni Kiralık Konut", "Yeni Satılık Arsa", "Portföy Listesi", "Akıllı Eşleştirme"]
 choice = st.sidebar.selectbox("Menü", menu)
 
 # --- YARDIMCI FONKSİYONLAR ---
@@ -91,104 +91,4 @@ elif choice == "Yeni Satılık Konut":
         tip = st.selectbox("Konut Tipi", ["Daire", "Villa", "Rezidans"])
         fiyat = st.text_input("Fiyat")
         bolge = st.text_input("Bölge/Mahalle")
-        oda = st.selectbox("Oda Sayısı", ["1+1", "2+1", "3+1", "4+1", "5+1"])
-        kat = st.text_input("Kat")
-        sahibi = st.text_input("Mülk Sahibi")
-        sahibi_tel = st.text_input("Sahibi Tel")
-        notlar = st.text_area("Notlar")
-        
-        if st.form_submit_button("Kaydet"):
-            data = {
-                "tarih": datetime.now().strftime("%d.%m.%Y"),
-                "ilan_no": ilan_no,
-                "konut_tipi": tip,
-                "fiyat": fiyat,
-                "bölge_mahalle": bolge,
-                "oda_sayısı": oda,
-                "kat": kat,
-                "sahibi": sahibi,
-                "sahibi_tel": sahibi_tel,
-                "notlar": notlar
-            }
-            write_to_cloud("satilik_konut", data)
-
-elif choice == "Yeni Kiralık Konut":
-    st.header("🔑 Yeni Kiralık Konut")
-    with st.form("kk_form"):
-        ilan_no = st.text_input("İlan No")
-        tip = st.selectbox("Konut Tipi", ["Daire", "Villa", "Rezidans"])
-        fiyat = st.text_input("Kira Bedeli")
-        bolge = st.text_input("Bölge/Mahalle")
-        oda = st.selectbox("Oda Sayısı", ["1+1", "2+1", "3+1", "4+1", "5+1"])
-        kat = st.text_input("Kat")
-        sahibi = st.text_input("Mülk Sahibi")
-        sahibi_tel = st.text_input("Sahibi Tel")
-        notlar = st.text_area("Notlar")
-        
-        if st.form_submit_button("Kaydet"):
-            data = {
-                "tarih": datetime.now().strftime("%d.%m.%Y"),
-                "ilan_no": ilan_no,
-                "konut_tipi": tip,
-                "fiyat": fiyat,
-                "bölge_mahalle": bolge,
-                "oda_sayısı": oda,
-                "kat": kat,
-                "sahibi": sahibi,
-                "sahibi_tel": sahibi_tel,
-                "notlar": notlar
-            }
-            write_to_cloud("kiralik_konut", data)
-
-elif choice == "Yeni Satılık Arsa":
-    st.header("🌳 Yeni Satılık Arsa")
-    with st.form("sa_form"):
-        ilan_no = st.text_input("İlan No")
-        tip = st.selectbox("Arsa Tipi", ["İmarlı", "Tarla", "Zeytinlik"])
-        ada = st.text_input("Ada")
-        parsel = st.text_input("Parsel")
-        fiyat = st.text_input("Fiyat")
-        bolge = st.text_input("Bölge/Mahalle")
-        sahibi = st.text_input("Mülk Sahibi")
-        sahibi_tel = st.text_input("Sahibi Tel")
-        notlar = st.text_area("Notlar")
-        
-        if st.form_submit_button("Kaydet"):
-            data = {
-                "tarih": datetime.now().strftime("%d.%m.%Y"),
-                "ilan_no": ilan_no,
-                "arsa_tipi": tip,
-                "ada": ada,
-                "parsel": parsel,
-                "fiyat": fiyat,
-                "bölge_mahalle": bolge,
-                "sahibi": sahibi,
-                "sahibi_tel": sahibi_tel,
-                "notlar": notlar
-            }
-            write_to_cloud("satilik_arsa", data)
-
-elif choice == "Portföy Listesi":
-    st.header("📋 Güncel Portföyler")
-    tab1, tab2, tab3 = st.tabs(["Satılık Konut", "Kiralık Konut", "Satılık Arsa"])
-    
-    with tab1:
-        res = supabase.table("satilik_konut").select("*").execute()
-        if res.data:
-            df = pd.DataFrame(res.data)
-            st.dataframe(df[["ilan_no", "bölge_mahalle", "fiyat", "oda_sayısı"]])
-        else: st.info("Kayıt bulunamadı.")
-            
-    with tab2:
-        res = supabase.table("kiralik_konut").select("*").execute()
-        if res.data:
-            df = pd.DataFrame(res.data)
-            st.dataframe(df[["ilan_no", "bölge_mahalle", "fiyat", "oda_sayısı"]])
-        else: st.info("Kayıt bulunamadı.")
-            
-    with tab3:
-        res = supabase.table("satilik_arsa").select("*").execute()
-        if res.data:
-            df = pd.DataFrame(res.data)
-            st.dataframe(df[["ilan_no", "bölge_mahalle", "fiyat", "ada", "parsel"]])
-        else: st.info("Kayıt bulunamadı.")
+        oda = st
