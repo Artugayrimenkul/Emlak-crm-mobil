@@ -1,0 +1,8 @@
+customtkinter
+pandas
+supabase
+reportlab
+pillow
+openpyxl
+streamlit
+python-dotenv
