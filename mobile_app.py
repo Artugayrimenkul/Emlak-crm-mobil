@@ -61,8 +61,7 @@ def write_to_cloud(table_name, data, image_file=None, is_update=False, record_id
                 clean_data['resim_url'] = img_name
         
         if is_update:
-            if 'ilan_no' in clean_data:
-                del clean_data['ilan_no']
+            if 'ilan_no' in clean_data: del clean_data['ilan_no']
             supabase.table(table_name).update(clean_data).eq("id", record_id).execute()
             st.success("Kayıt başarıyla güncellendi!")
         else:
@@ -160,7 +159,7 @@ elif choice == "Yeni Kiralık Konut":
         kat = st.text_input("Kat")
         sahibi = st.text_input("Mülk Sahibi"); sahibi_tel = st.text_input("Sahibi Tel")
         notlar = st.text_area("Notlar")
-        img = st.file_uploader("İlan Resmi Seç", type=["jpg", "png", "jpeg"])
+        img = st.file_uploader("Resim Seç", type=["jpg", "png", "jpeg"])
         if st.form_submit_button("İlanı Kaydet"):
             data = {"tarih": datetime.now().strftime("%d.%m.%Y"), "ilan_no": ilan_no, "konut_tipi": tip, "fiyat": fiyat, "bölge_mahalle": bolge, "oda_sayısı": oda, "kat": kat, "sahibi": sahibi, "sahibi_tel": sahibi_tel, "notlar": notlar}
             write_to_cloud("kiralik_konut", data, img)
@@ -195,15 +194,23 @@ elif choice == "Portföy Listesi":
             sahibi = st.text_input("Mülk Sahibi", value=record_data.get('sahibi', ''))
             sahibi_tel = st.text_input("Sahibi Tel", value=record_data.get('sahibi_tel', ''))
             notlar = st.text_area("Notlar", value=record_data.get('notlar', ''))
-            img = st.file_uploader("Yeni Resim Yükle (Mevcut resmi değiştirir)", type=["jpg", "png", "jpeg"])
+            img = st.file_uploader("Yeni Resim Yükle", type=["jpg", "png", "jpeg"])
+            
+            # Tip spesifik alanlar
+            updates = {}
             if table_name in ["satilik_konut", "kiralik_konut"]:
-                tip = st.selectbox("Konut Tipi", ["Daire", "Villa", "Rezidans"], index=["Daire", "Villa", "Rezidans"].index(record_data.get('konut_tipi', 'Daire')))
-                oda = st.selectbox("Oda Sayısı", ["1+1", "2+1", "3+1", "4+1", "5+1"], index=["1+1", "2+1", "3+1", "4+1", "5+1"].index(record_data.get('oda_sayısı', '1+1')))
-                kat = st.text_input("Kat", value=record_data.get('kat', ''))
+                updates['konut_tipi'] = st.selectbox("Konut Tipi", ["Daire", "Villa", "Rezidans"], index=["Daire", "Villa", "Rezidans"].index(record_data.get('konut_tipi', 'Daire')))
+                updates['oda_sayısı'] = st.selectbox("Oda Sayısı", ["1+1", "2+1", "3+1", "4+1", "5+1"], index=["1+1", "2+1", "3+1", "4+1", "5+1"].index(record_data.get('oda_sayısı', '1+1')))
+                updates['kat'] = st.text_input("Kat", value=record_data.get('kat', ''))
+            elif table_name == "satilik_arsa":
+                updates['arsa_tipi'] = st.selectbox("Arsa Tipi", ["İmarlı", "Tarla", "Zeytinlik"], index=["İmarlı", "Tarla", "Zeytinlik"].index(record_data.get('arsa_tipi', 'İmarlı')))
+                updates['ada'] = st.text_input("Ada", value=record_data.get('ada', ''))
+                updates['parsel'] = st.text_input("Parsel", value=record_data.get('parsel', ''))
+
             if st.form_submit_button("İlanı Güncelle"):
-                updated_data = {"fiyat": fiyat, "bölge_mahalle": bolge, "sahibi": sahibi, "sahibi_tel": sahibi_tel, "notlar": notlar, "ilan_no": record_data['ilan_no']}
-                if table_name in ["satilik_konut", "kiralik_konut"]: updated_data.update({"konut_tipi": tip, "oda_sayısı": oda, "kat": kat})
-                write_to_cloud(table_name, updated_data, image_file=img, is_update=True, record_id=record_id)
+                final_data = {"fiyat": fiyat, "bölge_mahalle": bolge, "sahibi": sahibi, "sahibi_tel": sahibi_tel, "notlar": notlar, "ilan_no": record_data['ilan_no']}
+                final_data.update(updates)
+                write_to_cloud(table_name, final_data, image_file=img, is_update=True, record_id=record_id)
                 del st.session_state.editing_portfolio
                 st.rerun()
         if st.button("İptal"):
