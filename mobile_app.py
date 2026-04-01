@@ -53,11 +53,16 @@ def get_image_url(file_name):
 def write_to_cloud(table_name, data, image_file=None, is_update=False, record_id=None):
     try:
         clean_data = {k.lower().replace(" ", "_").replace("/", "_").replace("(", "").replace(")", ""): v for k, v in data.items()}
-        if image_file and 'ilan_no' in clean_data:
-            img_name = upload_image(image_file, clean_data['ilan_no'])
-            if img_name: clean_data['resim_url'] = img_name
+        
+        ilan_no_for_image = clean_data.get('ilan_no')
+        if image_file and ilan_no_for_image:
+            img_name = upload_image(image_file, ilan_no_for_image)
+            if img_name:
+                clean_data['resim_url'] = img_name
         
         if is_update:
+            if 'ilan_no' in clean_data:
+                del clean_data['ilan_no']
             supabase.table(table_name).update(clean_data).eq("id", record_id).execute()
             st.success("Kayıt başarıyla güncellendi!")
         else:
@@ -72,31 +77,108 @@ def write_to_cloud(table_name, data, image_file=None, is_update=False, record_id
 if choice == "Yeni Müşteri":
     st.header("👤 Yeni Müşteri Talebi")
     with st.form("customer_form"):
-        # ... (Müşteri formu aynı kalabilir)
         name = st.text_input("Ad Soyad")
         phone = st.text_input("Telefon (90...)")
-        # ...
+        email = st.text_input("E-posta")
+        demand = st.selectbox("Talep Türü", ["Satılık Konut", "Kiralık Konut", "Satılık Arsa"])
+        budget = st.text_input("Bütçe")
+        region1 = st.text_input("Bölge 1"); region2 = st.text_input("Bölge 2"); region3 = st.text_input("Bölge 3")
+        urgency = st.selectbox("Aciliyet", ["Acil", "Normal", "Belirtmedi"])
+        notes = st.text_area("Notlar")
         if st.form_submit_button("Müşteriyi Kaydet"):
-            # ...
-            pass
+            data = {"tarih": datetime.now().strftime("%d.%m.%Y"), "ad_soyad": name, "telefon": phone, "e_posta": email, "talep_türü": demand, "bütçe": budget, "bölge_1": region1, "bölge_2": region2, "bölge_3": region3, "aciliyet": urgency, "notlar": notes}
+            write_to_cloud("customers", data)
 
 elif choice == "Müşteri Listesi":
     st.header("👥 Müşteri Yönetimi")
-    # ... (Müşteri listesi ve düzenleme aynı kalabilir)
-    pass
+    if 'editing_customer_id' in st.session_state and st.session_state.editing_customer_id is not None:
+        customer_id = st.session_state.editing_customer_id
+        res = supabase.table("customers").select("*").eq("id", customer_id).single().execute()
+        customer_data = res.data
+        st.header(f"✍️ {customer_data['ad_soyad']} Düzenle")
+        with st.form(key="edit_customer_form"):
+            name = st.text_input("Ad Soyad", value=customer_data.get('ad_soyad', ''))
+            phone = st.text_input("Telefon", value=customer_data.get('telefon', ''))
+            email = st.text_input("E-posta", value=customer_data.get('e_posta', ''))
+            demand = st.selectbox("Talep Türü", ["Satılık Konut", "Kiralık Konut", "Satılık Arsa"], index=["Satılık Konut", "Kiralık Konut", "Satılık Arsa"].index(customer_data.get('talep_türü', 'Satılık Konut')))
+            budget = st.text_input("Bütçe", value=customer_data.get('bütçe', ''))
+            region1 = st.text_input("Bölge 1", value=customer_data.get('bölge_1', '')); region2 = st.text_input("Bölge 2", value=customer_data.get('bölge_2', '')); region3 = st.text_input("Bölge 3", value=customer_data.get('bölge_3', ''))
+            urgency = st.selectbox("Aciliyet", ["Acil", "Normal", "Belirtmedi"], index=["Acil", "Normal", "Belirtmedi"].index(customer_data.get('aciliyet', 'Normal')))
+            notes = st.text_area("Notlar", value=customer_data.get('notlar', ''))
+            if st.form_submit_button("Müşteriyi Güncelle"):
+                updated_data = {"ad_soyad": name, "telefon": phone, "e_posta": email, "talep_türü": demand, "bütçe": budget, "bölge_1": region1, "bölge_2": region2, "bölge_3": region3, "aciliyet": urgency, "notlar": notes}
+                supabase.table("customers").update(updated_data).eq("id", customer_id).execute()
+                st.success("Müşteri güncellendi!")
+                del st.session_state.editing_customer_id
+                st.rerun()
+        if st.button("İptal"):
+            del st.session_state.editing_customer_id
+            st.rerun()
+    else:
+        res = supabase.table("customers").select("*").execute()
+        if res.data:
+            for row in res.data:
+                with st.expander(f"{row['ad_soyad']} - {row['talep_türü']}"):
+                    st.write(f"📞 {row['telefon']} | 💰 {row['bütçe']} | 📍 {row['bölge_1']}")
+                    c1, c2, c3 = st.columns(3)
+                    with c1: st.link_button("WhatsApp'tan Yaz", f"https://wa.me/{row['telefon']}", use_container_width=True)
+                    with c2: 
+                        if st.button("✍️ Düzenle", key=f"edit_cust_{row['id']}", use_container_width=True):
+                            st.session_state.editing_customer_id = row['id']
+                            st.rerun()
+                    with c3:
+                        if st.button("🗑️ Sil", key=f"del_cust_{row['id']}", type="primary", use_container_width=True):
+                            supabase.table("customers").delete().eq("id", row['id']).execute()
+                            st.success(f"{row['ad_soyad']} silindi.")
+                            st.rerun()
+        else: st.info("Müşteri kaydı bulunamadı.")
 
 elif choice == "Yeni Satılık Konut":
     st.header("💰 Yeni Satılık Konut")
     with st.form("sk_form"):
-        # ... (İlan formu aynı kalabilir)
         ilan_no = st.text_input("İlan No")
-        # ...
+        tip = st.selectbox("Konut Tipi", ["Daire", "Villa", "Rezidans"])
+        fiyat = st.text_input("Fiyat")
+        bolge = st.text_input("Bölge/Mahalle")
+        oda = st.selectbox("Oda Sayısı", ["1+1", "2+1", "3+1", "4+1", "5+1"])
+        kat = st.text_input("Kat")
+        sahibi = st.text_input("Mülk Sahibi"); sahibi_tel = st.text_input("Sahibi Tel")
+        notlar = st.text_area("Notlar")
         img = st.file_uploader("İlan Resmi Seç", type=["jpg", "png", "jpeg"])
         if st.form_submit_button("İlanı Kaydet"):
-            # ...
-            pass
+            data = {"tarih": datetime.now().strftime("%d.%m.%Y"), "ilan_no": ilan_no, "konut_tipi": tip, "fiyat": fiyat, "bölge_mahalle": bolge, "oda_sayısı": oda, "kat": kat, "sahibi": sahibi, "sahibi_tel": sahibi_tel, "notlar": notlar}
+            write_to_cloud("satilik_konut", data, img)
 
-# Diğer ilan ekleme formları (Kiralık, Arsa) buraya eklenebilir...
+elif choice == "Yeni Kiralık Konut":
+    st.header("🔑 Yeni Kiralık Konut")
+    with st.form("kk_form"):
+        ilan_no = st.text_input("İlan No")
+        tip = st.selectbox("Konut Tipi", ["Daire", "Villa", "Rezidans"])
+        fiyat = st.text_input("Kira Bedeli")
+        bolge = st.text_input("Bölge/Mahalle")
+        oda = st.selectbox("Oda Sayısı", ["1+1", "2+1", "3+1", "4+1", "5+1"])
+        kat = st.text_input("Kat")
+        sahibi = st.text_input("Mülk Sahibi"); sahibi_tel = st.text_input("Sahibi Tel")
+        notlar = st.text_area("Notlar")
+        img = st.file_uploader("İlan Resmi Seç", type=["jpg", "png", "jpeg"])
+        if st.form_submit_button("İlanı Kaydet"):
+            data = {"tarih": datetime.now().strftime("%d.%m.%Y"), "ilan_no": ilan_no, "konut_tipi": tip, "fiyat": fiyat, "bölge_mahalle": bolge, "oda_sayısı": oda, "kat": kat, "sahibi": sahibi, "sahibi_tel": sahibi_tel, "notlar": notlar}
+            write_to_cloud("kiralik_konut", data, img)
+
+elif choice == "Yeni Satılık Arsa":
+    st.header("🌳 Yeni Satılık Arsa")
+    with st.form("sa_form"):
+        ilan_no = st.text_input("İlan No")
+        tip = st.selectbox("Arsa Tipi", ["İmarlı", "Tarla", "Zeytinlik"])
+        ada = st.text_input("Ada"); parsel = st.text_input("Parsel")
+        fiyat = st.text_input("Fiyat")
+        bolge = st.text_input("Bölge/Mahalle")
+        sahibi = st.text_input("Mülk Sahibi"); sahibi_tel = st.text_input("Sahibi Tel")
+        notlar = st.text_area("Notlar")
+        img = st.file_uploader("Arsa Resmi Seç", type=["jpg", "png", "jpeg"])
+        if st.form_submit_button("Arsayı Kaydet"):
+            data = {"tarih": datetime.now().strftime("%d.%m.%Y"), "ilan_no": ilan_no, "arsa_tipi": tip, "ada": ada, "parsel": parsel, "fiyat": fiyat, "bölge_mahalle": bolge, "sahibi": sahibi, "sahibi_tel": sahibi_tel, "notlar": notlar}
+            write_to_cloud("satilik_arsa", data, img)
 
 elif choice == "Portföy Listesi":
     st.header("📋 Portföy Yönetimi")
@@ -113,21 +195,15 @@ elif choice == "Portföy Listesi":
             sahibi = st.text_input("Mülk Sahibi", value=record_data.get('sahibi', ''))
             sahibi_tel = st.text_input("Sahibi Tel", value=record_data.get('sahibi_tel', ''))
             notlar = st.text_area("Notlar", value=record_data.get('notlar', ''))
-            
-            # Resim yükleme alanı
             img = st.file_uploader("Yeni Resim Yükle (Mevcut resmi değiştirir)", type=["jpg", "png", "jpeg"])
-
             if table_name in ["satilik_konut", "kiralik_konut"]:
                 tip = st.selectbox("Konut Tipi", ["Daire", "Villa", "Rezidans"], index=["Daire", "Villa", "Rezidans"].index(record_data.get('konut_tipi', 'Daire')))
                 oda = st.selectbox("Oda Sayısı", ["1+1", "2+1", "3+1", "4+1", "5+1"], index=["1+1", "2+1", "3+1", "4+1", "5+1"].index(record_data.get('oda_sayısı', '1+1')))
                 kat = st.text_input("Kat", value=record_data.get('kat', ''))
-            
             if st.form_submit_button("İlanı Güncelle"):
                 updated_data = {"fiyat": fiyat, "bölge_mahalle": bolge, "sahibi": sahibi, "sahibi_tel": sahibi_tel, "notlar": notlar, "ilan_no": record_data['ilan_no']}
                 if table_name in ["satilik_konut", "kiralik_konut"]: updated_data.update({"konut_tipi": tip, "oda_sayısı": oda, "kat": kat})
-                
                 write_to_cloud(table_name, updated_data, image_file=img, is_update=True, record_id=record_id)
-                
                 del st.session_state.editing_portfolio
                 st.rerun()
         if st.button("İptal"):
@@ -165,4 +241,25 @@ elif choice == "Portföy Listesi":
 
 elif choice == "Akıllı Eşleştirme":
     st.header("🎯 Akıllı Eşleştirme")
-    # ... (Mevcut kod aynı kalabilir)
+    cust_res = supabase.table("customers").select("*").execute()
+    if cust_res.data:
+        df_cust = pd.DataFrame(cust_res.data)
+        selected = st.selectbox("Müşteri Seçin", df_cust["ad_soyad"].tolist())
+        if selected:
+            cust = df_cust[df_cust["ad_soyad"] == selected].iloc[0]
+            table = {"Satılık Konut": "satilik_konut", "Kiralık Konut": "kiralik_konut", "Satılık Arsa": "satilik_arsa"}.get(cust["talep_türü"])
+            if table:
+                port_res = supabase.table(table).select("*").execute()
+                if port_res.data:
+                    regions = [str(cust[r]).lower().strip() for r in ["bölge_1", "bölge_2", "bölge_3"] if cust[r] and str(cust[r]).strip() != "-"]
+                    matches = [p for p in port_res.data if any(r in str(p.get("bölge_mahalle", "")).lower() for r in regions)]
+                    for p in matches:
+                        with st.container(border=True):
+                            c1, c2 = st.columns([1, 3])
+                            with c1:
+                                url = get_image_url(p.get('resim_url'))
+                                if url: st.image(url, width=100)
+                            with c2:
+                                st.write(f"**İlan: {p['ilan_no']}** | {p['bölge_mahalle']} | {p.get('fiyat')} TL")
+                                st.link_button("Müşteriye Gönder", f"https://wa.me/{cust['telefon']}?text=Sizin için uygun ilan: {p['ilan_no']}\nBölge: {p['bölge_mahalle']}\nFiyat: {p.get('fiyat')} TL")
+    else: st.warning("Müşteri bulunamadı.")
