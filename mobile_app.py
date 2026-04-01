@@ -62,25 +62,31 @@ def delete_image(file_name):
 # --- İLAN YÖNETİMİ ---
 def portfolio_form(table_name, record_data=None):
     is_update = record_data is not None
-    st.header(f"✍️ {record_data['ilan_no']} Düzenle" if is_update else f"➕ Yeni {table_name.replace('_', ' ').title()}")
+    st.header(f"✍️ {record_data.get('ilan_no', '')} Düzenle" if is_update else f"➕ Yeni {table_name.replace('_', ' ').title()}")
 
     with st.form(key="portfolio_form"):
-        ilan_no = st.text_input("İlan No", value=record_data.get('ilan_no', ''), disabled=is_update)
-        fiyat = st.text_input("Fiyat", value=record_data.get('fiyat', ''))
-        bolge = st.text_input("Bölge/Mahalle", value=record_data.get('bölge_mahalle', ''))
-        sahibi = st.text_input("Mülk Sahibi", value=record_data.get('sahibi', ''))
-        sahibi_tel = st.text_input("Sahibi Tel", value=record_data.get('sahibi_tel', ''))
-        notlar = st.text_area("Notlar", value=record_data.get('notlar', ''))
+        # Yeni kayıtta record_data None olacağı için .get() metodu kullanılır
+        ilan_no = st.text_input("İlan No", value=record_data.get('ilan_no', '') if record_data else '', disabled=is_update)
+        fiyat = st.text_input("Fiyat", value=record_data.get('fiyat', '') if record_data else '')
+        bolge = st.text_input("Bölge/Mahalle", value=record_data.get('bölge_mahalle', '') if record_data else '')
+        sahibi = st.text_input("Mülk Sahibi", value=record_data.get('sahibi', '') if record_data else '')
+        sahibi_tel = st.text_input("Sahibi Tel", value=record_data.get('sahibi_tel', '') if record_data else '')
+        notlar = st.text_area("Notlar", value=record_data.get('notlar', '') if record_data else '')
         
         updates = {}
+        # index'i sadece güncelleme modunda ve veri varsa ata
+        konut_tipi_index = ["Daire", "Villa", "Rezidans"].index(record_data.get('konut_tipi', 'Daire')) if is_update and record_data else 0
+        oda_sayisi_index = ["1+1", "2+1", "3+1", "4+1", "5+1"].index(record_data.get('oda_sayısı', '1+1')) if is_update and record_data else 0
+        arsa_tipi_index = ["İmarlı", "Tarla", "Zeytinlik"].index(record_data.get('arsa_tipi', 'İmarlı')) if is_update and record_data else 0
+
         if table_name in ["satilik_konut", "kiralik_konut"]:
-            updates['konut_tipi'] = st.selectbox("Konut Tipi", ["Daire", "Villa", "Rezidans"], index=["Daire", "Villa", "Rezidans"].index(record_data.get('konut_tipi', 'Daire')))
-            updates['oda_sayısı'] = st.selectbox("Oda Sayısı", ["1+1", "2+1", "3+1", "4+1", "5+1"], index=["1+1", "2+1", "3+1", "4+1", "5+1"].index(record_data.get('oda_sayısı', '1+1')))
-            updates['kat'] = st.text_input("Kat", value=record_data.get('kat', ''))
+            updates['konut_tipi'] = st.selectbox("Konut Tipi", ["Daire", "Villa", "Rezidans"], index=konut_tipi_index)
+            updates['oda_sayısı'] = st.selectbox("Oda Sayısı", ["1+1", "2+1", "3+1", "4+1", "5+1"], index=oda_sayisi_index)
+            updates['kat'] = st.text_input("Kat", value=record_data.get('kat', '') if record_data else '')
         elif table_name == "satilik_arsa":
-            updates['arsa_tipi'] = st.selectbox("Arsa Tipi", ["İmarlı", "Tarla", "Zeytinlik"], index=["İmarlı", "Tarla", "Zeytinlik"].index(record_data.get('arsa_tipi', 'İmarlı')))
-            updates['ada'] = st.text_input("Ada", value=record_data.get('ada', ''))
-            updates['parsel'] = st.text_input("Parsel", value=record_data.get('parsel', ''))
+            updates['arsa_tipi'] = st.selectbox("Arsa Tipi", ["İmarlı", "Tarla", "Zeytinlik"], index=arsa_tipi_index)
+            updates['ada'] = st.text_input("Ada", value=record_data.get('ada', '') if record_data else '')
+            updates['parsel'] = st.text_input("Parsel", value=record_data.get('parsel', '') if record_data else '')
 
         new_images = st.file_uploader("Yeni Resimler Ekle", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
         
@@ -93,7 +99,7 @@ def portfolio_form(table_name, record_data=None):
             final_data = {"fiyat": fiyat, "bölge_mahalle": bolge, "sahibi": sahibi, "sahibi_tel": sahibi_tel, "notlar": notlar}
             final_data.update(updates)
             
-            current_images = record_data.get('image_urls', []) if is_update else []
+            current_images = record_data.get('image_urls', []) if is_update and record_data else []
             
             if new_images:
                 uploaded_urls = upload_images(new_images, ilan_no if not is_update else record_data['ilan_no'])
