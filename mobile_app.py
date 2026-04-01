@@ -178,4 +178,14 @@ elif choice == "Akıllı Eşleştirme":
                 port_res = supabase.table(table).select("*").execute()
                 if port_res.data:
                     regions = [str(cust[r]).lower().strip() for r in ["bölge_1", "bölge_2", "bölge_3"] if cust[r] and str(cust[r]).strip() != "-"]
-                    matches = [p for p in port_res.data if any
+                    matches = [p for p in port_res.data if any(r in str(p.get("bölge_mahalle", "")).lower() for r in regions)]
+                    for p in matches:
+                        with st.container(border=True):
+                            c1, c2 = st.columns([1, 3])
+                            with c1:
+                                url = get_image_url(p.get('resim_url'))
+                                if url: st.image(url, width=100)
+                            with c2:
+                                st.write(f"**İlan: {p['ilan_no']}** | {p['bölge_mahalle']} | {p.get('fiyat')} TL")
+                                st.link_button("Müşteriye Gönder", f"https://wa.me/{cust['telefon']}?text=Sizin için uygun ilan: {p['ilan_no']}\nBölge: {p['bölge_mahalle']}\nFiyat: {p.get('fiyat')} TL")
+    else: st.warning("Müşteri bulunamadı.")
