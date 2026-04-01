@@ -65,7 +65,6 @@ def portfolio_form(table_name, record_data=None):
     st.header(f"✍️ {record_data.get('ilan_no', '')} Düzenle" if is_update else f"➕ Yeni {table_name.replace('_', ' ').title()}")
 
     with st.form(key="portfolio_form"):
-        # Yeni kayıtta record_data None olacağı için .get() metodu kullanılır
         ilan_no = st.text_input("İlan No", value=record_data.get('ilan_no', '') if record_data else '', disabled=is_update)
         fiyat = st.text_input("Fiyat", value=record_data.get('fiyat', '') if record_data else '')
         bolge = st.text_input("Bölge/Mahalle", value=record_data.get('bölge_mahalle', '') if record_data else '')
@@ -74,7 +73,6 @@ def portfolio_form(table_name, record_data=None):
         notlar = st.text_area("Notlar", value=record_data.get('notlar', '') if record_data else '')
         
         updates = {}
-        # index'i sadece güncelleme modunda ve veri varsa ata
         konut_tipi_index = ["Daire", "Villa", "Rezidans"].index(record_data.get('konut_tipi', 'Daire')) if is_update and record_data else 0
         oda_sayisi_index = ["1+1", "2+1", "3+1", "4+1", "5+1"].index(record_data.get('oda_sayısı', '1+1')) if is_update and record_data else 0
         arsa_tipi_index = ["İmarlı", "Tarla", "Zeytinlik"].index(record_data.get('arsa_tipi', 'İmarlı')) if is_update and record_data else 0
@@ -99,8 +97,20 @@ def portfolio_form(table_name, record_data=None):
             final_data = {"fiyat": fiyat, "bölge_mahalle": bolge, "sahibi": sahibi, "sahibi_tel": sahibi_tel, "notlar": notlar}
             final_data.update(updates)
             
-            current_images = record_data.get('image_urls', []) if is_update and record_data else []
+            # --- HATA DÜZELTMESİ BURADA ---
+            current_images_raw = record_data.get('image_urls', []) if is_update and record_data else []
+            if isinstance(current_images_raw, str):
+                try:
+                    current_images = json.loads(current_images_raw)
+                except json.JSONDecodeError:
+                    current_images = []
+            else:
+                current_images = current_images_raw if current_images_raw is not None else []
             
+            if not isinstance(current_images, list):
+                current_images = []
+            # --- DÜZELTME SONU ---
+
             if new_images:
                 uploaded_urls = upload_images(new_images, ilan_no if not is_update else record_data['ilan_no'])
                 current_images.extend(uploaded_urls)
