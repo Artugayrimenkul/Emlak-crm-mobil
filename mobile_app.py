@@ -37,17 +37,12 @@ def upload_image(file, ilan_no):
         if file:
             file_ext = file.name.split(".")[-1]
             file_name = f"{ilan_no}.{file_ext}"
-            # portfolio_images bucket'ına yükle
             supabase.storage.from_("portfolio_images").upload(
-                path=file_name,
-                file=file.getvalue(),
-                file_options={"content-type": f"image/{file_ext}", "upsert": True}
+                path=file_name, file=file.getvalue(), file_options={"content-type": f"image/{file_ext}", "upsert": "true"}
             )
             return file_name
     except Exception as e:
-        # Hatayı ekranda açıkça göster
-        st.error(f"⚠️ Resim Sistemi Hatası: {str(e)}")
-        st.info("İpucu: Supabase'de 'portfolio_images' klasörünün oluşturulduğundan ve 'Public' olduğundan emin olun.")
+        st.error(f"Resim yükleme hatası: {e}")
     return None
 
 def get_image_url(file_name):
@@ -59,24 +54,23 @@ def write_to_cloud(table_name, data, image_file=None, is_update=False, record_id
     try:
         clean_data = {k.lower().replace(" ", "_").replace("/", "_").replace("(", "").replace(")", ""): v for k, v in data.items()}
         
-        # İlan No varsa resmi işle
-        ilan_no_val = data.get('ilan_no') or data.get('İlan No')
-        if image_file and ilan_no_val:
-            img_name = upload_image(image_file, str(ilan_no_val))
+        ilan_no_for_image = clean_data.get('ilan_no')
+        if image_file and ilan_no_for_image:
+            img_name = upload_image(image_file, ilan_no_for_image)
             if img_name:
                 clean_data['resim_url'] = img_name
         
         if is_update:
-            # Güncellemede İlan No'yu değiştirmeye çalışma
-            if 'ilan_no' in clean_data: del clean_data['ilan_no']
+            if 'ilan_no' in clean_data:
+                del clean_data['ilan_no']
             supabase.table(table_name).update(clean_data).eq("id", record_id).execute()
-            st.success("✅ Kayıt başarıyla güncellendi!")
+            st.success("Kayıt başarıyla güncellendi!")
         else:
             if 'id' in clean_data: del clean_data['id']
             supabase.table(table_name).insert(clean_data).execute()
-            st.success("✅ Buluta başarıyla kaydedildi!")
+            st.success("Buluta başarıyla kaydedildi!")
     except Exception as e:
-        st.error(f"❌ Veritabanı Hatası: {str(e)}")
+        st.error(f"Kayıt hatası: {e}")
 
 # --- MENÜ İÇERİKLERİ ---
 
@@ -245,7 +239,7 @@ elif choice == "Portföy Listesi":
                             with c2:
                                 if st.button("🗑️ Sil", key=f"del_port_{table_name}_{row['id']}", type="primary", use_container_width=True):
                                     supabase.table(table_name).delete().eq("id", row['id']).execute()
-                                    st.success(f"{row['ilan_no']} nolu ilan sildi.")
+                                    st.success(f"{row['ilan_no']} nolu ilan silindi.")
                                     st.rerun()
             else: st.info("Kayıt bulunamadı.")
         with t1: show_portfolio("satilik_konut")
