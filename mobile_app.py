@@ -37,6 +37,7 @@ def upload_image(file, ilan_no):
         if file:
             file_ext = file.name.split(".")[-1]
             file_name = f"{ilan_no}.{file_ext}"
+            # Upsert true sayesinde aynı isimli dosyanın üzerine yazabiliriz
             supabase.storage.from_("portfolio_images").upload(
                 path=file_name, file=file.getvalue(), file_options={"content-type": f"image/{file_ext}", "upsert": "true"}
             )
@@ -54,22 +55,25 @@ def write_to_cloud(table_name, data, image_file=None, is_update=False, record_id
     try:
         clean_data = {k.lower().replace(" ", "_").replace("/", "_").replace("(", "").replace(")", ""): v for k, v in data.items()}
         
-        ilan_no_for_image = clean_data.get('ilan_no')
-        if image_file and ilan_no_for_image:
-            img_name = upload_image(image_file, ilan_no_for_image)
+        # Resim işlemi
+        ilan_no_val = clean_data.get('ilan_no')
+        if image_file and ilan_no_val:
+            img_name = upload_image(image_file, ilan_no_val)
             if img_name:
                 clean_data['resim_url'] = img_name
         
         if is_update:
+            # Güncellemede ilan_no ve tarih alanlarını değiştirmeyelim
             if 'ilan_no' in clean_data: del clean_data['ilan_no']
-            supabase.table(table_name).update(clean_data).eq("id", record_id).execute()
+            if 'tarih' in clean_data: del clean_data['tarih']
+            res = supabase.table(table_name).update(clean_data).eq("id", record_id).execute()
             st.success("Kayıt başarıyla güncellendi!")
         else:
             if 'id' in clean_data: del clean_data['id']
-            supabase.table(table_name).insert(clean_data).execute()
+            res = supabase.table(table_name).insert(clean_data).execute()
             st.success("Buluta başarıyla kaydedildi!")
     except Exception as e:
-        st.error(f"Kayıt hatası: {e}")
+        st.error(f"Kayıt hatası detayı: {e}")
 
 # --- MENÜ İÇERİKLERİ ---
 
@@ -196,7 +200,6 @@ elif choice == "Portföy Listesi":
             notlar = st.text_area("Notlar", value=record_data.get('notlar', ''))
             img = st.file_uploader("Yeni Resim Yükle", type=["jpg", "png", "jpeg"])
             
-            # Tip spesifik alanlar
             updates = {}
             if table_name in ["satilik_konut", "kiralik_konut"]:
                 updates['konut_tipi'] = st.selectbox("Konut Tipi", ["Daire", "Villa", "Rezidans"], index=["Daire", "Villa", "Rezidans"].index(record_data.get('konut_tipi', 'Daire')))
